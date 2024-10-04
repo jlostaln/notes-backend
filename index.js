@@ -1,6 +1,8 @@
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const app = express()
+const Note = require('./models/note')
 
 const requestLogger = (request, response, next) => {
   console.log('Method:', request.method)
@@ -8,10 +10,6 @@ const requestLogger = (request, response, next) => {
   console.log('Body: ', request.body)
   console.log('---')
   next()
-}
-
-const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint'})
 }
 
 app.use(cors())
@@ -42,25 +40,44 @@ app.get('/', (req, res) => {
 })
 
 app.get('/api/notes', (req, res) => {
-  res.json(notes)
+  Note.find({}).then(notes => {
+    res.json(notes)
+  })
 })
 
-app.get('/api/notes/:id', (req, res) => {
-  const id = Number(req.params.id)
-  console.log(id)
-  const note = notes.find(note => note.id === id)
-  console.log(note)
+app.get('/api/notes/:id', (req, res, next) => {
+  Note.findById(req.params.id)
+    .then(note => {
+      if (note) {
+        res.json(note)
+      } else {
+        res.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 
-  if (note) {
-    res.json(note)
-  } else {
-    res.status(404).end()
-  }
+  // const id = Number(req.params.id)
+  // console.log(id)
+  // const note = notes.find(note => note.id === id)
+  // console.log(note)
+
+  // if (note) {
+  //   res.json(note)
+  // } else {
+  //   res.status(404).end()
+  // }
 })
 
-app.delete('/api/notes/:id', (req, res) => {
-  const id = Number(req.params.id)
-  notes = notes.filter(note => note.id !== id)
+app.delete('/api/notes/:id', (req, res, next) => {
+  // const id = Number(req.params.id)
+  // notes = notes.filter(note => note.id !== id)
+
+  Note.findByIdAndDelete(req.params.id)
+    .then(result => {
+      res.status(204).end()
+    })
+    .catch(error => next(error))
+
 })
 
 const generateId = () => {
@@ -71,28 +88,68 @@ const generateId = () => {
 }
 
 app.post('/api/notes', (req, res) => {
-  
   const body = req.body
   
-  if (!body.content) {
-    return res.status(400).json({
-      error: 'content missing'
-    })
+  if (body.content === undefined) {
+    return res.status(400).json({error: 'content missing'})
   }
+
+  const note = new Note({
+    content: body.content,
+    important: body.important || false,
+  })
+
+  note.save().then(savedNote => {
+    res.json(savedNote)
+  })
+
+  // const note = {
+  //   content: body.content,
+  //   important: body.important || false,
+  //   id: generateId(),
+  // }
+
+  // notes = notes.concat(note)
+  // res.json(note)
+
+})
+
+app.put('/api/notes/:id', (req, res, next) => {
+  const body = req.body
 
   const note = {
     content: body.content,
-    important: body.important || false,
-    id: generateId(),
+    important: body.important,
   }
 
-  notes = notes.concat(note)
-  res.json(note)
+  Note.findByIdAndUpdate(req.params.id, note, { new: true })
+    .then(updatedNote => {
+      res.json(updatedNote)
+    })
+    .catch(error => next(error))
 })
 
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint'})
+}
+
+// olemattomien osoitteiden käsittely
 app.use(unknownEndpoint)
 
-const PORT = process.env.PORT || 3001
+const errorHandler = (error, req, res, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return res.status(400).send({ error: 'malformatted id' })
+  }
+
+  next(error)
+}
+
+// virheellisten pyyntöjen käsittely
+app.use(errorHandler)
+
+const PORT = process.env.PORT
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
