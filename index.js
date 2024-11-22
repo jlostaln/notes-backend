@@ -17,24 +17,6 @@ app.use(express.static('dist'))
 app.use(express.json())
 app.use(requestLogger)
 
-let notes = [
-  {
-    id: 1,
-    content: "HTML is easy",
-    important: true
-  }, 
-  {
-    id: 2,
-    content: "Browser can execute only JavaScript",
-    important: false
-  },
-  {
-    id: 3,
-    content: "GET and POST are the most important methods of HTTP protocol",
-    important: true
-  }
-]
-
 app.get('/', (req, res) => {
   res.send('<h1>Hello World!</h1>')
 })
@@ -56,16 +38,6 @@ app.get('/api/notes/:id', (req, res, next) => {
     })
     .catch(error => next(error))
 
-  // const id = Number(req.params.id)
-  // console.log(id)
-  // const note = notes.find(note => note.id === id)
-  // console.log(note)
-
-  // if (note) {
-  //   res.json(note)
-  // } else {
-  //   res.status(404).end()
-  // }
 })
 
 app.delete('/api/notes/:id', (req, res, next) => {
@@ -73,23 +45,16 @@ app.delete('/api/notes/:id', (req, res, next) => {
   // notes = notes.filter(note => note.id !== id)
 
   Note.findByIdAndDelete(req.params.id)
-    .then(result => {
+    .then(() => {
       res.status(204).end()
     })
     .catch(error => next(error))
 
 })
 
-const generateId = () => {
-  const maxId = notes.length > 0
-    ? Math.max(...notes.map(n => n.id))
-    : 0
-  return maxId + 1
-}
-
 app.post('/api/notes', (req, res, next) => {
   const body = req.body
-  
+
   const note = new Note({
     content: body.content,
     important: body.important || false,
@@ -97,7 +62,7 @@ app.post('/api/notes', (req, res, next) => {
 
   note.save()
     .then(savedNote => {
-    res.json(savedNote)
+      res.json(savedNote)
     })
     .catch(error => next(error))
 })
@@ -106,8 +71,8 @@ app.put('/api/notes/:id', (req, res, next) => {
   const { content, important } = req.body
 
   Note.findByIdAndUpdate(
-    req.params.id, 
-    { content, important }, 
+    req.params.id,
+    { content, important },
     { new: true, runValidators: true, context: 'query' }
   )
     .then(updatedNote => {
@@ -117,7 +82,7 @@ app.put('/api/notes/:id', (req, res, next) => {
 })
 
 const unknownEndpoint = (request, response) => {
-  response.status(404).send({ error: 'unknown endpoint'})
+  response.status(404).send({ error: 'unknown endpoint' })
 }
 
 // olemattomien osoitteiden käsittely
